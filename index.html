@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hamerenoh QR Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://unpkg.com/qr-code-styling@1.6.0/lib/qr-code-styling.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #303030, #252525, #131313, #1b1b1b, #181818,
+                               #0f0f0f, #0f0f0f, #0c0c0c, #000000, #000000, #000000);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #e0e0e0;
+      background-size: 400% 400%;
+      animation: bg 30s infinite;
+    }
+
+    @keyframes bg {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 100%; }
+      100% { background-position: 0% 50%; }
+    }
+  
+    .card {
+      width: 600px; 
+      max-width: 100%;
+      background: #616161;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px #0000004d;
+      padding: 20px;
+    }
+
+    .logo {
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #11c900;
+      margin-bottom: 20px;
+    }
+
+    .form-step {
+      display: none;
+    }
+
+    .form-step.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #ffffff;
+    }
+
+    input, select {
+      text-align: center;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #636363;
+      background-color: #f5f5f5;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    input:focus, select:focus {
+      border-color: #11c900;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(17, 201, 0, 0.2);
+    }
+
+    input[readonly] {
+      background-color: #e0e0e0;
+      cursor: not-allowed;
+    }
+
+    .navigation {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      gap: 10px;
+    }
+
+    .navigation button {
+      background: #0eac00;
+      color: #fff;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+      flex: 1;
+    }
+
+    .navigation button:hover {
+      background: #0c9a00;
+      transform: translateY(-2px);
+    }
+
+    .navigation button:active {
+      transform: translateY(0);
+    }
+
+    .navigation button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+
+    #qr-with-background {
+      display: none;
+      margin: 20px auto;
+      text-align: center;
+      position: relative;
+      width: 300px;
+      height: 300px;
+    }
+
+    #qr-background-image {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      object-fit: contain;
+    }
+
+    #qr-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin-top: 25px;
+      transform: translate(-50%, -50%);
+      width: 150px !important;
+      height: 150px !important;
+    }
+
+    #qr-overlay canvas {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain;
+    }
+
+    .download-btn {
+      display: none;
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .download-btn button {
+      background: #11c900;
+      color: #fff;
+      padding: 12px 24px;
+      border: none;
+      width: 100%;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .download-btn button:hover {
+      background: #218838;
+      transform: translateY(-2px);
+    }
+
+    .progress-indicator {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .step-bubble {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #757575;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 10px;
+      position: relative;
+    }
+
+    .step-bubble.active {
+      background: #0eac00;
+    }
+
+    .step-bubble.completed {
+      background: #0eac00;
+    }
+
+    .step-bubble::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 2px;
+      background: #757575;
+      right: -20px;
+    }
+
+    .step-bubble:last-child::after {
+      display: none;
+    }
+
+    .step-bubble.completed::after {
+      background: #0eac00;
+    }
+
+    /* Loading dots animation styles */
+    .dots {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .dots div {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      animation: bounce 0.6s infinite alternate;
+    }
+    /* ቀለም ለነጥቦች */
+    .dots div:nth-child(1) {
+      background: green;
+    }
+    .dots div:nth-child(2) {
+      background: yellow;
+      animation-delay: 0.2s;
+    }
+    .dots div:nth-child(3) {
+      background: red;
+      animation-delay: 0.4s;
+    }
+
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to { transform: translateY(-15px); }
+    }
+
+    .status-message {
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      text-align: center;
+      display: none;
+    }
+
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    /* Radio pill styles */
+    .radio-pill-container {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .radio-pill {
+      flex: 1;
+      text-align: center;
+    }
+
+    .radio-pill input[type="radio"] {
+      display: none;
+    }
+
+    .radio-pill label {
+      display: block;
+      padding: 10px;
+      background: #757575;
+      color: white;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .radio-pill input[type="radio"]:checked + label {
+      background: #0eac00;
+      font-weight: 600;
+    }
+
+    .radio-pill label:hover {
+      background: #5a5a5a;
+    }
+
+  .button-loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .button-dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .button-dots div {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: bounce 0.6s infinite alternate;
+    }
+
+    .button-dots div:nth-child(1) {
+      background: white;
+    }
+
+    .button-dots div:nth-child(2) {
+      background: white;
+      animation-delay: 0.2s;
+    }
+
+    .button-dots div:nth-child(3) {
+      background: white;
+      animation-delay: 0.4s;
+    } 
+
+    @media screen and (max-width: 640px) {
+      .card {
+        width: 95%;
+        padding: 15px;
+      }
+      
+      .navigation {
+        flex-direction: column;
+      }
+      
+      .navigation button {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+
+      .radio-pill-container {
+        flex-direction: column;
+        gap: 8px;
+      }
+    }
+
+    @media screen and (max-width: 340px) {
+      .card {
+        width: 100%;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Hamerenoh QR Generator</div>
+    
+    <div class="progress-indicator">
+      <div class="step-bubble active" id="step1-bubble">1</div>
+      <div class="step-bubble" id="step2-bubble">2</div>
+      <div class="step-bubble" id="step3-bubble">3</div>
+    </div>
+
+    <div id="statusMessage" class="status-message"></div>
+
+    <form id="multiStepForm">
+      <div class="form-step active" id="step1">
+        <div class="form-group">
+          <label for="Church"></label>
+          <input type="text" id="Church" value="Hamerenoh" readonly>
+        </div>
+        <div class="form-group">
+          <label for="christianName">Christian Name</label>
+          <input type="text" id="christianName" required placeholder="ስመ-ክርስትና">
+        </div>
+        <div class="navigation">
+          <button type="button" id="step1-next">Next</button>
+        </div>
+      </div>
+
+      <div class="form-step" id="step2">
+        <div class="form-group">
+          <label for="fullName">Full Name</label>
+          <input type="text" id="fullName" required placeholder="ሙሉ ስም">
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone Number</label>
+          <input type="tel" id="phone" pattern="[0-9]{10,15}" inputmode="numeric" required placeholder="ስልክ ቁጥር">
+        </div>
+        <div class="form-group">
+          <label style="text-align: center;">ጾታ</label>
+          <div class="radio-pill-container">
+            <div class="radio-pill">
+              <input type="radio" id="gender-male" name="gender" value="Male" required>
+              <label for="gender-male">Male</label>
+            </div>
+            <div class="radio-pill">
+              <input type="radio" id="gender-female" name="gender" value="Female" required>
+              <label for="gender-female">Female</label>
+            </div>
+          </div>
+        </div>
+        <div class="navigation">
+          <button type="button" id="step2-next">Next</button>
+          <button type="button" id="prev-step2">Previous</button>
+        </div>
+      </div>
+
+      <div class="form-step" id="step3">
+        <div class="navigation">
+          <button type="button" id="generateBtn">Generate QR</button>
+          <button type="button" id="prev-step3">Previous</button>
+        </div>
+        
+        <!-- Loading animation container -->
+        <div id="loadingAnimation" class="dots" style="display: none;">
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+        
+        <div id="qr-with-background">
+          <img id="qr-background-image" src="" alt="QR Code with Background">
+          <div id="qr-overlay"></div>
+        </div>
+        
+        <div class="download-btn" id="downloadArea">
+          <button id="downloadBgBtn">Download QR Code</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Initialize variables
+    let currentStep = 1;
+    let isLoading = false;
+    let backgroundImageUrl = '';
+    let extractedLogo = null;
+    let extractedBackground = null;
+    
+    // Direct path to the CBZ.zip file
+    const CBZ_ZIP_URL = "CBZ.zip";
+
+    // QR Code dimensions and position (FOR DOWNLOAD)
+    const DOWNLOAD_QR_WIDTH = 1400;
+    const DOWNLOAD_QR_HEIGHT = 1400;
+    const QR_LEFT = 545;
+    const QR_TOP = 915;
+
+    // Initialize QR Code for download (larger size)
+    const downloadQR = new QRCodeStyling({
+      width: DOWNLOAD_QR_WIDTH,
+      height: DOWNLOAD_QR_HEIGHT,
+      type: "canvas",
+      data: "Initializing...",
+      image: "",
+      dotsOptions: {
+        color: "#000000",
+        type: "rounded"
+      },
+      cornersSquareOptions: {
+        color: "#33011f",
+        type: "extra-rounded"
+      },
+      backgroundOptions: {
+        color: "transparent",
+      },
+      imageOptions: {
+        crossOrigin: "anonymous",
+        margin: 6
+      }
+    });
+
+    // Function to automatically load the CBZ.zip file
+    async function loadCBZZip() {
+      if (isLoading) return;
+      
+      isLoading = true;
+      
+      try {
+        // Don't show status message on step 3
+        if (currentStep !== 3) {
+          showStatus("ZIP ፋይል በመጫን ላይ...", false);
+        }
+        
+        // Fetch the CBZ.zip file
+        const response = await fetch(CBZ_ZIP_URL);
+        if (!response.ok) throw new Error("ZIP ፋይል ሊጫን አልተቻለም");
+        
+        const zipBlob = await response.blob();
+        
+        // Create a File object for the ZIP
+        const zipFile = new File([zipBlob], 'CBZ.zip', { type: 'application/zip' });
+        
+        // Process the ZIP file
+        await processZipFile(zipFile);
+        
+        // Don't show status message on step 3
+        if (currentStep !== 3) {
+          showStatus("ZIP ፋይል በትክክል ተጭኗል!", false);
+        }
+      } catch (error) {
+        console.error("Error loading CBZ.zip:", error);
+        // Don't show status message on step 3
+        if (currentStep !== 3) {
+          showStatus("ZIP ፋይል ሊጫን አልተቻለም። ፋይሉ እንዳለ ያረጋግጡ", true);
+        }
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    // ZIP file handling
+    async function processZipFile(file) {
+      if (!file) return;
+      
+      try {
+        const zip = new JSZip();
+        const contents = await zip.loadAsync(file);
+        
+        // Look for logo and background images in the ZIP
+        let logoFile = null;
+        let backgroundFile = null;
+        
+        // Look for files that might be logo or background
+        for (const filename in contents.files) {
+          if (contents.files[filename].dir) continue;
+          
+          const lowerFilename = filename.toLowerCase();
+          
+          // Check if it might be a logo
+          if (lowerFilename.includes('logo') || lowerFilename.includes('icon')) {
+            logoFile = contents.files[filename];
+          }
+          // Check if it might be a background or card
+          else if (lowerFilename.includes('background') || lowerFilename.includes('bg') || 
+                  lowerFilename.includes('card') || lowerFilename.includes('template')) {
+            backgroundFile = contents.files[filename];
+          }
+        }
+        
+        // If we didn't find specific files, use the first two images
+        if (!logoFile || !backgroundFile) {
+          const imageFiles = [];
+          for (const filename in contents.files) {
+            if (contents.files[filename].dir) continue;
+            
+            const lowerFilename = filename.toLowerCase();
+            // Check for common image extensions
+            if (lowerFilename.endsWith('.png') || lowerFilename.endsWith('.jpg') || 
+                lowerFilename.endsWith('.jpeg') || lowerFilename.endsWith('.gif')) {
+              imageFiles.push(contents.files[filename]);
+            }
+          }
+          
+          if (imageFiles.length > 0 && !logoFile) logoFile = imageFiles[0];
+          if (imageFiles.length > 1 && !backgroundFile) backgroundFile = imageFiles[1];
+        }
+        
+        // Process logo if found
+        if (logoFile) {
+          const logoData = await logoFile.async('blob');
+          extractedLogo = new File([logoData], 'logo.png', { type: 'image/png' });
+        }
+        
+        // Process background if found
+        if (backgroundFile) {
+          const bgData = await backgroundFile.async('blob');
+          const bgURL = URL.createObjectURL(bgData);
+          extractedBackground = new File([bgData], 'background.png', { type: 'image/png' });
+          
+          // Update the background preview
+          backgroundImageUrl = bgURL;
+          document.getElementById('qr-background-image').src = backgroundImageUrl;
+        }
+        
+        // Don't show status message on step 3
+        if (currentStep !== 3) {
+          if (logoFile || backgroundFile) {
+            showStatus("ZIP ፋይል በትክክል ተከፈተ!", false);
+          } else {
+            showStatus("በZIP ፋይሉ ውስጥ ምንም ምስል አልተገኘም", true);
+          }
+        }
+        
+      } catch (error) {
+        console.error("Error processing ZIP:", error);
+        // Don't show status message on step 3
+        if (currentStep !== 3) {
+          showStatus("ZIP ፋይል ሊከፈት አልተቻለም", true);
+        }
+      }
+    }
+
+    // Form navigation
+    function showStep(step) {
+      currentStep = step;
+      document.querySelectorAll(".form-step").forEach((el, index) => {
+        el.classList.remove("active");
+        if (index === step - 1) el.classList.add("active");
+      });
+
+      // Update progress bubbles
+      document.querySelectorAll(".step-bubble").forEach((bubble, index) => {
+        bubble.classList.remove("active", "completed");
+        if (index + 1 === step) {
+          bubble.classList.add("active");
+        } else if (index + 1 < step) {
+          bubble.classList.add("completed");
+        }
+      });
+      
+      // Automatically load the CBZ.zip file when reaching step 3
+      if (step === 3 && !extractedLogo && !extractedBackground) {
+        loadCBZZip();
+      }
+      
+      // Hide status message when moving to step 3
+      if (step === 3) {
+        document.getElementById('statusMessage').style.display = 'none';
+      }
+    }
+
+    // Status messages
+    function showStatus(message, isError = false) {
+      // Don't show any status messages on step 3 except for download success
+      if (currentStep === 3 && !message.includes("Download successful")) return;
+      
+      const statusElement = document.getElementById('statusMessage');
+      statusElement.textContent = message;
+      statusElement.className = 'status-message ' + (isError ? 'error' : 'success');
+      statusElement.style.display = 'block';
+      
+      // Don't auto-hide download success messages
+      if (currentStep === 3 && !isError) return;
+      
+      setTimeout(() => {
+        statusElement.style.display = 'none';
+      }, 5000);
+    }
+
+    // Validation functions
+    function validateStep1() {
+      const cName = document.getElementById("christianName").value.trim();
+      if (!cName) {
+        showStatus("እባክዎ ስመ-ክርስትናዎን ያስገቡ", true);
+        return false;
+      }
+      return true;
+    }
+
+    function validateStep2() {
+      const fullName = document.getElementById("fullName").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const gender = document.querySelector('input[name="gender"]:checked');
+
+      if (!fullName) {
+        showStatus("እባክዎ ሙሉ ስሞን ያስገቡ", true);
+        return false;
+      }
+
+      if (!phone) {
+        showStatus("እባክዎ ስልክ ቁጥርዎን ያስገቡ", true);
+        return false;
+      }
+
+      if (!/^[0-9]{10,15}$/.test(phone)) {
+        showStatus("እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ", true);
+        return false;
+      }
+
+      if (!gender) {
+        showStatus("እባክዎ ጾታዎን ያስገቡ", true);
+        return false;
+      }
+
+      return true;
+    }
+
+    // QR Generation
+    function generateQR() {
+      if (isLoading) return;
+      
+      const Church = document.getElementById("Church").value;
+      const cName = document.getElementById("christianName").value;
+      const fName = document.getElementById("fullName").value;
+      const phone = document.getElementById("phone").value;
+      const gender = document.querySelector('input[name="gender"]:checked').value;
+
+      if (!extractedLogo) {
+        // Don't show error message on step 3
+        if (currentStep !== 3) {
+          showStatus("እባክዎ እንደገና ይሞክሩ <BGL", true);
+        }
+        return;
+      }
+
+      if (!extractedBackground) {
+        // Don't show error message on step 3
+        if (currentStep !== 3) {
+          showStatus("እባክዎ እንደገና ይሞክሩ <BGC>", true);
+        }
+        return;
+      }
+
+      isLoading = true;
+      const generateBtn = document.getElementById("generateBtn");
+      generateBtn.disabled = true;
+      
+      // Add loading dots to button
+      generateBtn.innerHTML = '<div class="button-loading"><div class="button-dots"><div></div><div></div><div></div></div> Generating...</div>';
+      
+      // Show loading animation
+      document.getElementById('loadingAnimation').style.display = 'flex';
+      
+      // Hide QR code if it was previously shown
+      document.getElementById("qr-with-background").style.display = "none";
+      document.getElementById("downloadArea").style.display = "none";
+
+      // Wait for 3 seconds before generating the QR code
+      setTimeout(() => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const qrData = `Church: ${Church}\nChristian Name: ${cName}\nFull Name: ${fName}\nPhone: ${phone}\nGender: ${gender}`;
+          
+          downloadQR.update({
+            data: qrData,
+            image: e.target.result
+          });
+
+          renderQR();
+          resetGenerateButton();
+          
+          // Don't show success message on step 3
+          document.getElementById('loadingAnimation').style.display = 'none';
+        };
+
+        reader.onerror = function() {
+          // Don't show error message on step 3
+          if (currentStep !== 3) {
+            showStatus("ፋይል ሊነበብ አልተቻለም", true);
+          }
+          resetGenerateButton();
+          document.getElementById('loadingAnimation').style.display = 'none';
+        };
+
+        reader.readAsDataURL(extractedLogo);
+      }, 3000); // 3 second delay
+    }
+
+    function resetGenerateButton() {
+      isLoading = false;
+      const generateBtn = document.getElementById("generateBtn");
+      generateBtn.disabled = false;
+      generateBtn.textContent = 'Generate QR';
+    }
+
+    // QR Rendering
+    function renderQR() {
+      const qrOverlay = document.getElementById("qr-overlay");
+      qrOverlay.innerHTML = "";
+      downloadQR.append(qrOverlay);
+      
+      document.getElementById("qr-with-background").style.display = "block";
+      document.getElementById("downloadArea").style.display = "flex";
+    }
+
+    // iOS detection
+    function isIOS() {
+      return [
+        'iPad Simulator',
+        'iPhone Simulator',
+        'iPod Simulator',
+        'iPad',
+        'iPhone',
+        'iPod'
+      ].includes(navigator.platform)
+      // iPad on iOS 13 detection
+      || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+    }
+
+    // Download function with iOS compatibility
+    function downloadQRCode() {
+      if (isLoading || !backgroundImageUrl) return;
+      
+      isLoading = true;
+      const downloadBtn = document.getElementById("downloadBgBtn");
+      downloadBtn.disabled = true;
+      
+      // Add loading dots to button
+      downloadBtn.innerHTML = '<div class="button-loading"><div class="button-dots"><div></div><div></div><div></div></div> Preparing...</div>';
+
+      try {
+        const bgImg = document.getElementById('qr-background-image');
+        const qrOverlay = document.querySelector('#qr-overlay canvas');
+        
+        if (!bgImg || !qrOverlay) throw new Error("ለማውረድ አስፈላጊ ነገሮች አልተገኙም");
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = bgImg.naturalWidth || bgImg.width;
+        canvas.height = bgImg.naturalHeight || bgImg.height;
+        
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(qrOverlay, QR_LEFT, QR_TOP, DOWNLOAD_QR_WIDTH, DOWNLOAD_QR_HEIGHT);
+        
+        const dataURL = canvas.toDataURL('image/png');
+        const fName = document.getElementById('fullName').value.trim().replace(/\s+/g, '_');
+        
+        // Handle iOS devices differently
+        if (isIOS()) {
+          // For iOS, open the image in a new tab and let user save manually
+          const newTab = window.open();
+          newTab.document.write(`<img src="${dataURL}" alt="QR Code" style="max-width: 100%;"/>`);
+          newTab.document.close();
+          
+          // Show download success message
+          showStatus("Download successful! For iOS users: Long press on the image and select 'Save Image'", false);
+        } else {
+          // Standard download for non-iOS devices
+          const link = document.createElement('a');
+          link.download = `${fName}_QR.png`;
+          link.href = dataURL;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Show download success message
+          showStatus("Download successful!", false);
+        }
+      } catch (error) {
+        // Don't show error message on step 3
+        if (currentStep !== 3) {
+          showStatus("ማውረድ አልተቻለም። እባክዎ ደግመው ይሞክሩ", true);
+        }
+      } finally {
+        isLoading = false;
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = 'Download QR Code';
+      }
+    }
+
+    // Initialize form and event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('christianName').focus();
+      
+      // Navigation buttons event listeners
+      document.getElementById('step1-next').addEventListener('click', function() {
+        if (validateStep1()) {
+          showStep(2);
+        }
+      });
+
+      document.getElementById('prev-step2').addEventListener('click', function() {
+        showStep(1);
+      });
+
+      document.getElementById('step2-next').addEventListener('click', function() {
+        if (validateStep2()) {
+          showStep(3);
+        }
+      });
+
+      document.getElementById('prev-step3').addEventListener('click', function() {
+        showStep(2);
+      });
+
+      document.getElementById('generateBtn').addEventListener('click', generateQR);
+      
+      document.getElementById('downloadBgBtn').addEventListener('click', downloadQRCode);
+    });
+  </script>
+</body>
+</html>
